@@ -1,6 +1,10 @@
 let clickCount = 0;
 
 const countryInput = document.getElementById('country');
+const countryCodeInput = document.getElementById('countryCode');
+const streetInput = document.getElementById('street');
+const cityInput = document.getElementById('city');
+const zipCodeInput = document.getElementById('zipCode');
 const myForm = document.getElementById('form');
 const modal = document.getElementById('form-feedback-modal');
 const clicksInfo = document.getElementById('click-count');
@@ -29,7 +33,8 @@ function getCountryByIP() {
         .then(response => response.json())
         .then(data => {
             const country = data.country;
-            // TODO inject country to form and call getCountryCode(country) function
+            getCountryCode(country)
+            countryInput.value = country;
         })
         .catch(error => {
             console.error('Błąd pobierania danych z serwera GeoJS:', error);
@@ -48,11 +53,35 @@ function getCountryCode(countryName) {
     })
     .then(data => {        
         const countryCode = data[0].idd.root + data[0].idd.suffixes.join("")
-        // TODO inject countryCode to form
+        countryCodeInput.value = countryCode;
     })
     .catch(error => {
         console.error('Wystąpił błąd:', error);
     });
+}
+async function getPostalCode(city, street) {
+    const address = `${street}, ${city}`;
+    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}`;
+
+    try {
+        const response = await fetch(url);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data = await response.json();
+        if (data.length > 0) {
+            const postalCode = data[0].display_name.split(',').slice(-2,-1);
+            if (postalCode) {
+                zipCodeInput.value = postalCode;
+            } else {
+                console.log('Postal code not found in address components');
+            }
+        } else {
+            console.log('No results found for the given address');
+        }
+    } catch (error) {
+        console.error('Error fetching data from Nominatim:', error);
+    }
 }
 
 
@@ -60,5 +89,11 @@ function getCountryCode(countryName) {
     // nasłuchiwania na zdarzenie kliknięcia myszką
     document.addEventListener('click', handleClick);
 
+    streetInput.addEventListener('focusout', function() {
+        getPostalCode(cityInput.value, streetInput.value);
+    });
+
     fetchAndFillCountries();
+    getCountryByIP()
 })()
+
